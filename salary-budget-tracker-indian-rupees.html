@@ -308,7 +308,7 @@
     /* Previous months form */
     #prevMonthForm {
       display: grid;
-      grid-template-columns: 1fr 1fr 1fr 1fr 1fr auto;
+      grid-template-columns: 1fr 1fr 1fr 1fr auto;
       gap: 1rem;
       align-items: end;
       margin-bottom: 1.5rem;
@@ -392,25 +392,6 @@
     }
     .status-badge.over-budget {
       background: var(--red);
-    }
-
-    /* Delete button style for previous months */
-    .delete-btn {
-      background: none;
-      border: none;
-      color: var(--red);
-      font-weight: 700;
-      font-size: 1.15rem;
-      cursor: pointer;
-      user-select: none;
-      padding: 0 6px;
-      margin-left: 8px;
-      transition: color 0.3s ease;
-    }
-    .delete-btn:hover,
-    .delete-btn:focus {
-      color: #b91c1c;
-      outline: none;
     }
 
   </style>
@@ -536,7 +517,6 @@
             <th>Wants (₹)</th>
             <th>Savings (₹)</th>
             <th>Status</th>
-            <th>Delete</th>
           </tr>
         </thead>
         <tbody>
@@ -809,16 +789,18 @@
       }
     }
 
-    // Render Previous months list with delete buttons
+    // Render Previous months list
     function renderPrevMonths() {
       prevMonthsListBody.innerHTML = '';
       if(prevMonths.length === 0) {
-        prevMonthsListBody.innerHTML = '<tr><td colspan="7" style="color: var(--text-secondary); font-style: italic;">No previous months data added.</td></tr>';
+        prevMonthsListBody.innerHTML = '<tr><td colspan="6" style="color: var(--text-secondary); font-style: italic;">No previous months data added.</td></tr>';
         return;
       }
 
       prevMonths.forEach((monthData, idx) => {
         const budget = calculateBudget(monthData.salary);
+        const totalExpensesNeedsWantsSavings = monthData.needs + monthData.wants + monthData.savings;
+        const totalBudget = budget.needs + budget.wants + budget.savings;
 
         // Determine overall status per category
         const needsStatus = monthData.needs <= budget.needs ? 'under-budget' : 'over-budget';
@@ -865,26 +847,68 @@
         statusTd.appendChild(statusBadge);
         tr.appendChild(statusTd);
 
-        // Delete button cell
-        const deleteTd = document.createElement('td');
-        const deleteBtn = document.createElement('button');
-        deleteBtn.innerHTML = '✕';
-        deleteBtn.className = 'delete-btn';
-        deleteBtn.setAttribute('aria-label', 'Delete previous month ' + monthData.monthYear);
-        deleteBtn.title = 'Delete entry';
-        deleteBtn.addEventListener('click', () => {
-          if(confirm('Are you sure you want to delete the data for ' + monthData.monthYear + '?')) {
-            prevMonths.splice(idx, 1);
-            savePrevMonths();
-            renderPrevMonths();
-          }
-        });
-        deleteTd.appendChild(deleteBtn);
-        tr.appendChild(deleteTd);
-
         prevMonthsListBody.appendChild(tr);
       });
     }
+
+    // Handle previous months form
+    prevMonthForm.addEventListener('submit', e => {
+      e.preventDefault();
+
+      const monthYear = monthInput.value.trim();
+      const salary = parseFloat(prevSalaryInput.value);
+      const needs = parseFloat(prevNeedsInput.value);
+      const wants = parseFloat(prevWantsInput.value);
+      const savings = parseFloat(prevSavingsInput.value);
+
+      // Validate all fields
+      const monthYearPattern = /^[A-Za-z]{3,9}\s\d{4}$/;
+      if(!monthYearPattern.test(monthYear)) {
+        alert('Please enter Month & Year in correct format like "Sep 2023".');
+        monthInput.focus();
+        return;
+      }
+      if(isNaN(salary) || salary < 0) {
+        alert('Please enter a valid salary amount.');
+        prevSalaryInput.focus();
+        return;
+      }
+      if(isNaN(needs) || needs < 0 || isNaN(wants) || wants < 0 || isNaN(savings) || savings < 0) {
+        alert('Please enter valid, non-negative expenses amounts for Needs, Wants, and Savings.');
+        prevNeedsInput.focus();
+        return;
+      }
+      // Check sum of expenses less or equal salary (basic check)
+      if(needs + wants + savings > salary) {
+        if(!confirm('The sum of expenses (Needs + Wants + Savings) exceeds the salary amount. Do you want to proceed?')) {
+          return;
+        }
+      }
+
+      // Add to prevMonths array
+      prevMonths.push({
+        monthYear,
+        salary,
+        needs,
+        wants,
+        savings,
+      });
+
+      // Save to localStorage
+      savePrevMonths();
+
+      // Re-render list
+      renderPrevMonths();
+
+      // Clear fields
+      monthInput.value = '';
+      prevSalaryInput.value = '';
+      prevNeedsInput.value = '';
+      prevWantsInput.value = '';
+      prevSavingsInput.value = '';
+
+      monthInput.focus();
+    });
 
     // Initialization
     function init() {
@@ -900,5 +924,4 @@
 
 </body>
 </html>
-
 
