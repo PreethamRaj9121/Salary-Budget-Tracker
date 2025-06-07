@@ -308,7 +308,7 @@
     /* Previous months form */
     #prevMonthForm {
       display: grid;
-      grid-template-columns: 1fr 1fr 1fr 1fr auto;
+      grid-template-columns: repeat(5, 1fr) auto;
       gap: 1rem;
       align-items: end;
       margin-bottom: 1.5rem;
@@ -374,6 +374,23 @@
     }
     #prevMonthsList tbody tr:hover {
       background: #eff6ff;
+    }
+    
+    #prevMonthsList .delete-btn {
+      background: var(--red);
+      color: white;
+      border: none;
+      padding: 0.3rem 0.8rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.85rem;
+      transition: background-color 0.2s;
+    }
+    #prevMonthsList .delete-btn:hover,
+    #prevMonthsList .delete-btn:focus {
+      background: #b91c1c; /* Darker red on hover/focus */
+      outline: none;
     }
 
     /* Status color badges in previous months table */
@@ -483,7 +500,7 @@
 
       <form id="prevMonthForm" aria-describedby="prevMonthFormDesc" novalidate>
         <div>
-          <label for="monthInput">Month &amp; Year</label>
+          <label for="monthInput">Month & Year</label>
           <input type="text" id="monthInput" placeholder="e.g. Sep 2023" autocomplete="off" required pattern="^[A-Za-z]{3,9}\s\d{4}$" aria-describedby="prevMonthFormatHint" />
           <small id="prevMonthFormatHint" style="color: var(--text-secondary); font-size: 0.75rem;">Format: Month YYYY (e.g. Sep 2023)</small>
         </div>
@@ -511,12 +528,13 @@
       <table id="prevMonthsList" aria-live="polite" aria-atomic="true" summary="Your previous months' salary budget comparisons">
         <thead>
           <tr>
-            <th>Month &amp; Year</th>
+            <th>Month & Year</th>
             <th>Salary (₹)</th>
             <th>Needs (₹)</th>
             <th>Wants (₹)</th>
             <th>Savings (₹)</th>
             <th>Status</th>
+            <th>Action</th>
           </tr>
         </thead>
         <tbody>
@@ -793,15 +811,13 @@
     function renderPrevMonths() {
       prevMonthsListBody.innerHTML = '';
       if(prevMonths.length === 0) {
-        prevMonthsListBody.innerHTML = '<tr><td colspan="6" style="color: var(--text-secondary); font-style: italic;">No previous months data added.</td></tr>';
+        prevMonthsListBody.innerHTML = '<tr><td colspan="7" style="color: var(--text-secondary); font-style: italic;">No previous months data added.</td></tr>';
         return;
       }
 
       prevMonths.forEach((monthData, idx) => {
         const budget = calculateBudget(monthData.salary);
-        const totalExpensesNeedsWantsSavings = monthData.needs + monthData.wants + monthData.savings;
-        const totalBudget = budget.needs + budget.wants + budget.savings;
-
+        
         // Determine overall status per category
         const needsStatus = monthData.needs <= budget.needs ? 'under-budget' : 'over-budget';
         const wantsStatus = monthData.wants <= budget.wants ? 'under-budget' : 'over-budget';
@@ -846,6 +862,24 @@
         statusBadge.textContent = overallStatus;
         statusTd.appendChild(statusBadge);
         tr.appendChild(statusTd);
+
+        // *** NEW: Add Delete button cell ***
+        const actionTd = document.createElement('td');
+        const deleteBtn = document.createElement('button');
+        deleteBtn.textContent = 'Delete';
+        deleteBtn.className = 'delete-btn';
+        deleteBtn.title = `Delete data for ${monthData.monthYear}`;
+        deleteBtn.setAttribute('aria-label', `Delete data for ${monthData.monthYear}`);
+        deleteBtn.addEventListener('click', () => {
+          // Add confirmation before deleting
+          if (confirm(`Are you sure you want to delete the data for ${monthData.monthYear}?`)) {
+              prevMonths.splice(idx, 1); // Remove the item from the array
+              savePrevMonths();         // Update localStorage
+              renderPrevMonths();       // Re-render the table
+          }
+        });
+        actionTd.appendChild(deleteBtn);
+        tr.appendChild(actionTd);
 
         prevMonthsListBody.appendChild(tr);
       });
@@ -924,4 +958,3 @@
 
 </body>
 </html>
-
