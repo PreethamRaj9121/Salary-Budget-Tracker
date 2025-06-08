@@ -575,11 +575,17 @@
     const prevSavingsInput = document.getElementById('prevSavingsInput');
     const prevMonthsListBody = document.querySelector('#prevMonthsList tbody');
 
-    // Expenses storage array
+    // --- UPDATED: Data storage arrays ---
     let expenses = [];
-
-    // Previous months storage
     let prevMonths = [];
+
+    // --- NEW: LocalStorage keys ---
+    const STORAGE_KEYS = {
+        salary: 'budget_app_salary',
+        currentExpenses: 'budget_app_current_expenses',
+        prevMonths: 'budget_app_prev_months'
+    };
+
 
     // Formatting helper: format number as Indian Rupee with comma separators
     function formatRupees(num) {
@@ -674,6 +680,7 @@
         delBtn.setAttribute('aria-label', 'Remove expense: ' + exp.description + ', ' + formatRupees(exp.amount));
         delBtn.addEventListener('click', () => {
           expenses.splice(idx, 1);
+          saveCurrentExpenses(); // <-- UPDATED: Save after deleting
           renderExpenseList();
           updateSummary();
         });
@@ -758,10 +765,53 @@
       pieChart.data.datasets[1].data = [expenses.needs, expenses.wants, expenses.savings];
       pieChart.update();
     }
+    
+    // --- NEW: Data Persistence Functions ---
+
+    function saveSalary() {
+        localStorage.setItem(STORAGE_KEYS.salary, salaryInput.value);
+    }
+    function loadSalary() {
+        const savedSalary = localStorage.getItem(STORAGE_KEYS.salary);
+        if (savedSalary !== null) {
+            salaryInput.value = savedSalary;
+        }
+    }
+    
+    function saveCurrentExpenses() {
+        localStorage.setItem(STORAGE_KEYS.currentExpenses, JSON.stringify(expenses));
+    }
+    function loadCurrentExpenses() {
+        const savedExpenses = localStorage.getItem(STORAGE_KEYS.currentExpenses);
+        if (savedExpenses) {
+            try {
+                expenses = JSON.parse(savedExpenses) || [];
+            } catch (e) {
+                console.error("Error parsing current expenses from localStorage", e);
+                expenses = [];
+            }
+        }
+    }
+
+    function savePrevMonths() {
+        localStorage.setItem(STORAGE_KEYS.prevMonths, JSON.stringify(prevMonths));
+    }
+    function loadPrevMonths() {
+        const stored = localStorage.getItem(STORAGE_KEYS.prevMonths);
+        if (stored) {
+            try {
+                prevMonths = JSON.parse(stored) || [];
+            } catch (e) {
+                console.error("Error parsing previous months from localStorage", e);
+                prevMonths = [];
+            }
+        }
+    }
 
     // Handle salary input changes
     salaryInput.addEventListener('input', () => {
       updateSummary();
+      saveSalary(); // <-- UPDATED: Save on change
     });
 
     // Handle expense form submission
@@ -778,6 +828,7 @@
 
       // Add expense to array
       expenses.push({ description: desc, amount: amount, category: category });
+      saveCurrentExpenses(); // <-- UPDATED: Save after adding
 
       // Clear inputs
       descInput.value = '';
@@ -790,22 +841,6 @@
 
       descInput.focus();
     });
-
-    // Previous months: Load and save from localStorage
-    function savePrevMonths() {
-      localStorage.setItem('prevMonths', JSON.stringify(prevMonths));
-    }
-
-    function loadPrevMonths() {
-      const stored = localStorage.getItem('prevMonths');
-      if (stored) {
-        try {
-          prevMonths = JSON.parse(stored) || [];
-        } catch {
-          prevMonths = [];
-        }
-      }
-    }
 
     // Render Previous months list
     function renderPrevMonths() {
@@ -863,7 +898,6 @@
         statusTd.appendChild(statusBadge);
         tr.appendChild(statusTd);
 
-        // *** NEW: Add Delete button cell ***
         const actionTd = document.createElement('td');
         const deleteBtn = document.createElement('button');
         deleteBtn.textContent = 'Delete';
@@ -871,11 +905,10 @@
         deleteBtn.title = `Delete data for ${monthData.monthYear}`;
         deleteBtn.setAttribute('aria-label', `Delete data for ${monthData.monthYear}`);
         deleteBtn.addEventListener('click', () => {
-          // Add confirmation before deleting
           if (confirm(`Are you sure you want to delete the data for ${monthData.monthYear}?`)) {
-              prevMonths.splice(idx, 1); // Remove the item from the array
-              savePrevMonths();         // Update localStorage
-              renderPrevMonths();       // Re-render the table
+              prevMonths.splice(idx, 1);
+              savePrevMonths();
+              renderPrevMonths();
           }
         });
         actionTd.appendChild(deleteBtn);
@@ -895,7 +928,6 @@
       const wants = parseFloat(prevWantsInput.value);
       const savings = parseFloat(prevSavingsInput.value);
 
-      // Validate all fields
       const monthYearPattern = /^[A-Za-z]{3,9}\s\d{4}$/;
       if(!monthYearPattern.test(monthYear)) {
         alert('Please enter Month & Year in correct format like "Sep 2023".');
@@ -912,14 +944,12 @@
         prevNeedsInput.focus();
         return;
       }
-      // Check sum of expenses less or equal salary (basic check)
       if(needs + wants + savings > salary) {
         if(!confirm('The sum of expenses (Needs + Wants + Savings) exceeds the salary amount. Do you want to proceed?')) {
           return;
         }
       }
 
-      // Add to prevMonths array
       prevMonths.push({
         monthYear,
         salary,
@@ -928,13 +958,9 @@
         savings,
       });
 
-      // Save to localStorage
       savePrevMonths();
-
-      // Re-render list
       renderPrevMonths();
 
-      // Clear fields
       monthInput.value = '';
       prevSalaryInput.value = '';
       prevNeedsInput.value = '';
@@ -944,14 +970,20 @@
       monthInput.focus();
     });
 
-    // Initialization
+    // --- UPDATED: Initialization Function ---
     function init() {
+      // First, load all data from localStorage
+      loadSalary();
+      loadCurrentExpenses();
       loadPrevMonths();
+      
+      // Then, render the UI with the loaded data
       renderPrevMonths();
       renderExpenseList();
       updateSummary();
     }
 
+    // Run the app
     init();
 
   </script>
